@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const app = express();
 const port = process.env.PORT || 5000;
-const mongoURL = 'mongodb://localhost:27017/Al-Katef-CRM';
+const mongoURL = 'mongodb+srv://alkatefdb:RWA0VMWWN2OXT5OS@cluster0.7wz8ncf.mongodb.net/Al-Katef-CRM?retryWrites=true&w=majority';
 const cors = require('cors');
 const socketIo = require('socket.io');
 const http = require('http');
