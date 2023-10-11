@@ -11,7 +11,7 @@ const multer = require('multer');
 const upload = multer();
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); 
+app.use(express.urlencoded({ extended: true }));
 app.use(upload.any());
 
 const corsOptions = {
@@ -103,7 +103,6 @@ mongoose
       name: String,
       email: String,
       role: String,
-      name: String,
       password: String,
     });
 
@@ -120,9 +119,9 @@ mongoose
       deadlineDays: Number,
       status: String,
       file: {
-        data: Buffer,         
-        contentType: String,  
-        fileName: String,      
+        data: Buffer,
+        contentType: String,
+        fileName: String,
       },
     });
 
@@ -134,7 +133,7 @@ mongoose
       },
       clockOutTime: {
         type: Date,
-        required: false, // Make it not required initially
+        required: false,
       },
       username: String,
     });
@@ -285,19 +284,19 @@ mongoose
     app.post('/insert-lead', async (req, res) => {
       const leadData = req.body;
       const { title, description, selectedUser, deadlineDays, status } = leadData;
-    
+
       // Handle the uploaded file(s) using multer
       const files = req.files;
-    
+
       try {
         // Convert the deadlineDays field to a number
         const parsedDeadlineDays = parseFloat(deadlineDays);
-    
+
         if (isNaN(parsedDeadlineDays)) {
           // Handle the case where deadlineDays is not a valid number
           return res.status(400).json({ message: 'Invalid deadlineDays' });
         }
-    
+
         // Create a new lead object with the selected user's name and other fields
         const newLead = new LeadModel({
           title,
@@ -311,10 +310,10 @@ mongoose
             fileName: files[0].originalname,
           },
         });
-    
+
         // Save the lead object to the database
         const insertedLead = await newLead.save();
-    
+
         // Send a response
         res.status(201).json(insertedLead);
       } catch (err) {
@@ -322,17 +321,39 @@ mongoose
         res.status(500).send('Error inserting lead');
       }
     });
-    
+
     // fetch leads
     app.get('/leads', async (req, res) => {
       try {
         const leads = await LeadModel.find();
-        res.json(leads);
-      } catch (err) {
-        console.error('Error retrieving leads:', err);
+
+        // Check if the client requested a file download
+        const download = req.query.download;
+
+        if (download) {
+          const leadId = req.query.leadId;
+          const lead = leads.find((lead) => lead._id.toString() === leadId);
+
+          if (!lead) {
+            return res.status(404).json({ message: 'Lead not found' });
+          }
+
+          // Set appropriate response headers for download
+          res.setHeader('Content-Type', lead.file.contentType);
+          res.setHeader('Content-Disposition', `attachment; filename=${lead.file.fileName}`);
+
+          // Send the file data as a response
+          res.send(lead.file.data);
+        } else {
+          // If not a download request, return the list of leads
+          res.json(leads);
+        }
+      } catch (error) {
+        console.error('Error retrieving leads:', error);
         res.status(500).send('Error retrieving leads');
       }
     });
+
 
     // Update lead
     app.put('/update-lead/:id', async (req, res) => {
