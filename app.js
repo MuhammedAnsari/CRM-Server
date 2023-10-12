@@ -125,7 +125,6 @@ mongoose
       },
     });
 
-
     const attendanceSchema = new mongoose.Schema({
       clockInTime: {
         type: Date,
@@ -138,6 +137,13 @@ mongoose
       username: String,
     });
 
+    // mail schema
+    const mailSchema = new mongoose.Schema({
+      toUser: String,
+      subject: String,
+      message: String
+    })
+
 
     // Models
     const AdminModel = mongoose.model('admins', adminSchema);
@@ -145,6 +151,7 @@ mongoose
     const RoleModel = mongoose.model('roles', rolesSchema);
     const LeadModel = mongoose.model('leads', leadSchema);
     const Attendance = mongoose.model('Attendance', attendanceSchema);
+    const MailModal = mongoose.model('Mails', mailSchema);
 
     // Routes
     app.post('/insert-admin', async (req, res) => {
@@ -482,6 +489,37 @@ mongoose
         return res.status(500).json({ message: 'Internal server error' });
       }
     });
+
+    // store mail in db
+    app.post('/mails', async (req, res) => {
+      const { toUser, subject, message } = req.body;
+    
+      // Create a new MailModal instance with the data
+      const newMail = new MailModal({ toUser, subject, message });
+    
+      try {
+        // Save the data to the database and await the result
+        await newMail.save();
+        res.status(201).json({ message: 'Mail saved successfully' });
+      } catch (error) {
+        console.error('Error saving mail:', error);
+        res.status(500).json({ error: 'Error saving mail' });
+      }
+    });
+    
+    // fetch mail
+    app.get('/fetchmail', async (req, res) => {
+      try {
+      
+        const mails = await MailModal.find(); 
+    
+        res.status(200).json({ success: true, data: mails });
+      } catch (error) {
+        console.error('Error fetching mails:', error);
+        res.status(500).json({ success: false, error: 'Error fetching mails' });
+      }
+    });
+    
 
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
