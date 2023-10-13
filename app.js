@@ -213,6 +213,7 @@ mongoose
       try {
         const employees = await EmployeeModel.find();
         res.json(employees);
+        
       } catch (err) {
         console.error('Error retrieving employees:', err);
         res.status(500).send('Error retrieving employees');
