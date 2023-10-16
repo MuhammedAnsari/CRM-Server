@@ -123,7 +123,12 @@ mongoose
         contentType: String,
         fileName: String,
       },
+      addedAt: {
+        type: Date,
+        default: Date.now, // Set the default value to the current date and time
+      },
     });
+    
 
     const attendanceSchema = new mongoose.Schema({
       clockInTime: {
@@ -292,25 +297,25 @@ mongoose
     app.post('/insert-lead', async (req, res) => {
       const leadData = req.body;
       const { title, description, selectedUser, deadlineDays, status } = leadData;
-
+    
       // Handle the uploaded file(s) using multer
       const files = req.files;
-
+    
       try {
         // Convert the deadlineDays field to a number
         const parsedDeadlineDays = parseFloat(deadlineDays);
-
+    
         if (isNaN(parsedDeadlineDays)) {
           // Handle the case where deadlineDays is not a valid number
           return res.status(400).json({ message: 'Invalid deadlineDays' });
         }
-
+    
         // Create a new lead object with the selected user's name and other fields
         const newLead = new LeadModel({
           title,
           description,
           assignedUser: selectedUser,
-          deadlineDays: parsedDeadlineDays, // Use the parsed value
+          deadlineDays: parsedDeadlineDays,
           status,
           file: {
             data: Buffer.from(files[0].buffer),
@@ -318,10 +323,12 @@ mongoose
             fileName: files[0].originalname,
           },
         });
-
+    
         // Save the lead object to the database
         const insertedLead = await newLead.save();
-
+    
+        // The 'addedAt' field will be automatically set to the current date and time
+    
         // Send a response
         res.status(201).json(insertedLead);
       } catch (err) {
@@ -329,6 +336,7 @@ mongoose
         res.status(500).send('Error inserting lead');
       }
     });
+    
 
     // fetch leads
     app.get('/leads', async (req, res) => {
