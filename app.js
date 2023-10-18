@@ -128,7 +128,7 @@ mongoose
         default: Date.now, // Set the default value to the current date and time
       },
     });
-    
+
 
     const attendanceSchema = new mongoose.Schema({
       clockInTime: {
@@ -218,7 +218,7 @@ mongoose
       try {
         const employees = await EmployeeModel.find();
         res.json(employees);
-        
+
       } catch (err) {
         console.error('Error retrieving employees:', err);
         res.status(500).send('Error retrieving employees');
@@ -293,23 +293,36 @@ mongoose
       }
     });
 
+    // delete role
+    app.delete('/remove-role/:id', async (req, res) => {
+      const roleId = req.params.id;
+      try {
+        await RoleModel.findByIdAndDelete(roleId);
+        res.status(200).json({ message: 'Role removed successfully' });
+      } catch (err) {
+        console.error('Error removing role:', err);
+        res.status(500).send('Error removing role');
+      }
+    });
+
+
     // add lead
     app.post('/insert-lead', async (req, res) => {
       const leadData = req.body;
       const { title, description, selectedUser, deadlineDays, status } = leadData;
-    
+
       // Handle the uploaded file(s) using multer
       const files = req.files;
-    
+
       try {
         // Convert the deadlineDays field to a number
         const parsedDeadlineDays = parseFloat(deadlineDays);
-    
+
         if (isNaN(parsedDeadlineDays)) {
           // Handle the case where deadlineDays is not a valid number
           return res.status(400).json({ message: 'Invalid deadlineDays' });
         }
-    
+
         // Create a new lead object with the selected user's name and other fields
         const newLead = new LeadModel({
           title,
@@ -323,12 +336,12 @@ mongoose
             fileName: files[0].originalname,
           },
         });
-    
+
         // Save the lead object to the database
         const insertedLead = await newLead.save();
-    
+
         // The 'addedAt' field will be automatically set to the current date and time
-    
+
         // Send a response
         res.status(201).json(insertedLead);
       } catch (err) {
@@ -336,7 +349,7 @@ mongoose
         res.status(500).send('Error inserting lead');
       }
     });
-    
+
 
     // fetch leads
     app.get('/leads', async (req, res) => {
@@ -502,10 +515,10 @@ mongoose
     // store mail in db
     app.post('/mails', async (req, res) => {
       const { toUser, subject, message } = req.body;
-    
+
       // Create a new MailModal instance with the data
       const newMail = new MailModal({ toUser, subject, message });
-    
+
       try {
         // Save the data to the database and await the result
         await newMail.save();
@@ -515,20 +528,20 @@ mongoose
         res.status(500).json({ error: 'Error saving mail' });
       }
     });
-    
+
     // fetch mail
     app.get('/fetchmail', async (req, res) => {
       try {
-      
-        const mails = await MailModal.find(); 
-    
+
+        const mails = await MailModal.find();
+
         res.status(200).json({ success: true, data: mails });
       } catch (error) {
         console.error('Error fetching mails:', error);
         res.status(500).json({ success: false, error: 'Error fetching mails' });
       }
     });
-    
+
 
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
