@@ -129,6 +129,13 @@ mongoose
       },
     });
 
+    // request schema
+    const requestSchema = new mongoose.Schema({
+      title: String,
+      assignedUser: String,
+      deadlineDays: Number,
+    });
+
 
     const attendanceSchema = new mongoose.Schema({
       clockInTime: {
@@ -157,6 +164,7 @@ mongoose
     const LeadModel = mongoose.model('leads', leadSchema);
     const Attendance = mongoose.model('Attendance', attendanceSchema);
     const MailModal = mongoose.model('Mails', mailSchema);
+    const RequestModel = mongoose.model('Requests', requestSchema);
 
     // Routes
     app.post('/insert-admin', async (req, res) => {
@@ -384,6 +392,52 @@ mongoose
       }
     });
 
+    // Fetch lead by ID
+    app.get('/leads/:leadId', async (req, res) => {
+      try {
+        const leadId = req.params.leadId.trim(); // Clean and extract the leadId
+        const lead = await LeadModel.findById(leadId);
+    
+        if (!lead) {
+          return res.status(404).json({ message: 'Lead not found' });
+        }
+    
+        // Return the lead data
+        res.json(lead);
+      } catch (error) {
+        console.error('Error retrieving lead by ID:', error);
+        res.status(500).send('Error retrieving lead');
+      }
+    });
+    
+    // give request
+    app.post('/requests', async (req, res) => {
+      const { title, assignedUser, deadlineDays } = req.body;
+    
+      try {
+        const newRequest = new RequestModel({ title, assignedUser, deadlineDays });
+        const savedRequest = await newRequest.save(); // Use await to handle the promise
+        res.status(201).json(savedRequest);
+      } catch (err) {
+        console.error('Error creating a new request:', err);
+        res.status(500).json({ error: 'Failed to create a new request' });
+      }
+    });
+
+    // fetch request
+    app.get('/view-request', async (req, res) => {
+      try {
+        // Fetch all data from the "Requests" collection
+        const requests = await RequestModel.find();
+    
+        // Send the requests data as a JSON response
+        res.json(requests);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+        res.status(500).json({ error: 'Failed to fetch requests' });
+      }
+    });
+    
 
     // Update lead
     app.put('/update-lead/:id', async (req, res) => {
