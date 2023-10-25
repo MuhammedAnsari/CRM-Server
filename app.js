@@ -37,14 +37,14 @@ mongoose
       console.log('A client connected');
 
       socket.on('clockIn', async (data) => {
-        const { username, uid } = data; // Include UID in the data
+        const { username, uid } = data;
         const clockInTime = new Date();
 
         try {
           const newAttendance = new Attendance({
             clockInTime,
             username,
-            uid, // Store UID in the attendance record
+            uid,
           });
 
           await newAttendance.save();
@@ -104,9 +104,10 @@ mongoose
       email: String,
       role: String,
       password: String,
+      status: Boolean,
     });
 
-    // Employees Schema
+    // Roles Schema
     const rolesSchema = new mongoose.Schema({
       rolename: String,
     });
@@ -154,7 +155,15 @@ mongoose
       toUser: String,
       subject: String,
       message: String
-    })
+    });
+
+    // client schema
+    const clientSchema = new mongoose.Schema({
+      clientName: String,
+      contactPerson: String,
+      clientPlace: String,
+      contactNumber: Number
+    });
 
 
     // Models
@@ -165,6 +174,43 @@ mongoose
     const Attendance = mongoose.model('Attendance', attendanceSchema);
     const MailModal = mongoose.model('Mails', mailSchema);
     const RequestModel = mongoose.model('Requests', requestSchema);
+    const ClientModel = mongoose.model('clients', clientSchema);
+
+
+    // add client
+    app.post('/add-client', async (req, res) => {
+      const { clientName, contactPerson, clientPlace, contactNumber } = req.body;
+
+      try {
+        const newClient = new ClientModel({
+          clientName,
+          contactPerson,
+          clientPlace,
+          contactNumber,
+        });
+
+        await newClient.save();
+        res.status(201).json(newClient);
+      } catch (err) {
+        console.log('Error adding client', err);
+        res.status(500).send('Error adding client');
+      }
+    });
+
+    // view clients
+    app.get('/view-clients', async (req, res) => {
+      try {
+        // Use the ClientModel to find all clients in the collection
+        const clients = await ClientModel.find();
+
+        // Respond with the list of clients
+        res.status(200).json(clients);
+      } catch (err) {
+        console.log('Error fetching clients', err);
+        res.status(500).send('Error fetching clients');
+      }
+    });
+
 
     // Routes
     app.post('/insert-admin', async (req, res) => {
@@ -276,6 +322,9 @@ mongoose
       }
     });
 
+    // add client
+
+
     // fetch roles
     app.get('/roles', async (req, res) => {
       try {
@@ -318,19 +367,19 @@ mongoose
     app.post('/insert-lead', async (req, res) => {
       const leadData = req.body;
       const { title, description, selectedUser, deadlineDays, status } = leadData;
-    
+
       // Handle the uploaded file(s) using multer
       const files = req.files;
-    
+
       try {
         // Convert the deadlineDays field to a number
         const parsedDeadlineDays = parseFloat(deadlineDays);
-    
+
         if (isNaN(parsedDeadlineDays)) {
           // Handle the case where deadlineDays is not a valid number
           return res.status(400).json({ message: 'Invalid deadlineDays' });
         }
-    
+
         // Create a new lead object with the selected user's name and other fields
         const newLead = new LeadModel({
           title,
@@ -339,7 +388,7 @@ mongoose
           deadlineDays: parsedDeadlineDays,
           status,
         });
-    
+
         // Check if a file was provided in the request
         if (files && files.length > 0) {
           newLead.file = {
@@ -348,10 +397,10 @@ mongoose
             fileName: files[0].originalname,
           };
         }
-    
+
         // Save the lead object to the database
         const insertedLead = await newLead.save();
-    
+
         // Send a response
         res.status(201).json(insertedLead);
       } catch (err) {
@@ -359,7 +408,7 @@ mongoose
         res.status(500).send('Error inserting lead');
       }
     });
-    
+
     // fetch leads
     app.get('/leads', async (req, res) => {
       try {
@@ -397,11 +446,11 @@ mongoose
       try {
         const leadId = req.params.leadId.trim(); // Clean and extract the leadId
         const lead = await LeadModel.findById(leadId);
-    
+
         if (!lead) {
           return res.status(404).json({ message: 'Lead not found' });
         }
-    
+
         // Return the lead data
         res.json(lead);
       } catch (error) {
@@ -409,11 +458,11 @@ mongoose
         res.status(500).send('Error retrieving lead');
       }
     });
-    
+
     // give request
     app.post('/requests', async (req, res) => {
       const { title, assignedUser, deadlineDays } = req.body;
-    
+
       try {
         const newRequest = new RequestModel({ title, assignedUser, deadlineDays });
         const savedRequest = await newRequest.save(); // Use await to handle the promise
@@ -429,7 +478,7 @@ mongoose
       try {
         // Fetch all data from the "Requests" collection
         const requests = await RequestModel.find();
-    
+
         // Send the requests data as a JSON response
         res.json(requests);
       } catch (error) {
@@ -437,7 +486,7 @@ mongoose
         res.status(500).json({ error: 'Failed to fetch requests' });
       }
     });
-    
+
 
     // Update lead
     app.put('/update-lead/:id', async (req, res) => {
@@ -506,21 +555,38 @@ mongoose
       }
     });
 
-    // Create an endpoint for clock in
+    // clock-in
     app.post('/clock-in', async (req, res) => {
-      const { username, uid } = req.body; // Include UID in the request body
+      const { username } = req.body; // Get the username
       const clockInTime = new Date();
 
       try {
         const newAttendance = new Attendance({
           clockInTime,
           username,
-          uid, // Store UID in the attendance record
         });
 
+        const latestAttendance = await Attendance.findOne({ username }).sort({
+          clockInTime: -1,
+        });
+
+        if (latestAttendance) {
+          // Set the clockOutTime for the previous attendance record (if exists)
+          latestAttendance.clockOutTime = clockInTime;
+          await latestAttendance.save();
+        }
+
         await newAttendance.save();
-        // Emit the clock-in event with UID
-        io.emit(`updateClockIn_${uid}`, { clockInTime, username, uid });
+
+        // Update the employee's status
+        const employee = await EmployeeModel.findOne({ name: username }); // Use the correct variable name
+        if (employee) {
+          employee.status = true; // Set status to true for clocked in
+          await employee.save();
+        }
+
+        // Emit the clock-in event with the username
+        io.emit(`updateClockIn_${username}`, { clockInTime, username });
         res.status(201).json(newAttendance);
       } catch (error) {
         console.error('Error clocking in:', error);
@@ -528,31 +594,42 @@ mongoose
       }
     });
 
-    // Create an endpoint for clock out
+
+    // clock-out
     app.post('/clock-out', async (req, res) => {
-      const { username, uid } = req.body; // Include UID in the request body
+      const { username } = req.body; // Get the username
       const clockOutTime = new Date();
 
       try {
-        // Find the latest attendance record for the user and update the clockOutTime
-        const latestAttendance = await Attendance.findOne({ username, uid }).sort({
+        const latestAttendance = await Attendance.findOne({ username }).sort({
           clockInTime: -1,
         });
 
         if (latestAttendance) {
           latestAttendance.clockOutTime = clockOutTime;
           await latestAttendance.save();
-          // Emit the clock-out event with UID
-          io.emit(`updateClockOut_${uid}`, { clockOutTime, username, uid });
-          res.status(200).json(latestAttendance);
         } else {
           res.status(404).json({ message: 'No clock in record found for the user' });
+          return;
         }
+
+        // Update the employee's status
+        const employee = await EmployeeModel.findOne({ name: username });
+        if (employee) {
+          employee.status = false; // Set status to false for clocked out
+          await employee.save();
+        }
+
+        // Emit the clock-out event with the username
+        io.emit(`updateClockOut_${username}`, { clockOutTime, username });
+        res.status(200).json(latestAttendance);
       } catch (error) {
         console.error('Error clocking out:', error);
         res.status(500).send('Error clocking out');
       }
     });
+
+
 
     // fetch attendance
     app.get('/attendance', async (req, res) => {
